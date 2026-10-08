@@ -1,5 +1,7 @@
 # parquet-tool
 
+**中文** | [English](README_EN.md)
+
 一个用 Rust 编写的 Parquet 文件查看工具，编译为单个自包含的可执行二进制文件，无需任何运行时依赖。提供 Linux（静态 musl）与 Windows 两种版本。
 
 ## 功能
