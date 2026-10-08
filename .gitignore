@@ -1,0 +1,14 @@
+# Rust build output
+/target
+
+# Cross-compile helpers (temporary, replaced by cargo-zigbuild)
+/zigcc-wrapper.exe
+/zigcc-wrapper.rs
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local release staging (publish from /release or GitHub Actions instead)
+/release

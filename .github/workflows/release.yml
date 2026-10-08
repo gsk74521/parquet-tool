@@ -1,0 +1,91 @@
+name: release
+
+# 触发方式：推送 v* 标签（如 v1.0.0）时自动构建并发布 GitHub Release。
+# 用法: git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: parquet-tool
+            pkg_ext: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: parquet-tool.exe
+            pkg_ext: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-zigbuild (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: pip install cargo-zigbuild
+
+      - name: Build (Linux musl, static)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo zigbuild --release --target ${{ matrix.target }}
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cargo build --release
+
+      - name: Prepare package
+        shell: bash
+        run: |
+          set -eux
+          VERSION="${GITHUB_REF_NAME#v}"
+          SRC="${{ matrix.os == 'ubuntu-latest' && format('target/{0}/release/{1}', matrix.target, 'parquet-tool') || 'target/release/parquet-tool.exe' }}"
+          DIR="parquet-tool-${VERSION}-${{ matrix.target }}"
+          mkdir -p "${DIR}"
+          cp "${SRC}" "${DIR}/${{ matrix.artifact }}"
+          cp README.md LICENSE "${DIR}/"
+          if [ "${{ matrix.pkg_ext }}" = "tar.gz" ]; then
+            tar -czf "${DIR}.tar.gz" "${DIR}"
+          else
+            python -m zipfile -c "${DIR}.zip" "${DIR}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.target }}
+          path: parquet-tool-*.${{ matrix.pkg_ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Compute SHA256
+        working-directory: dist
+        run: sha256sum parquet-tool-*.tar.gz parquet-tool-*.zip > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -1,0 +1,22 @@
+[package]
+name = "parquet-tool"
+version = "1.0.0"
+edition = "2021"
+description = "Inspect Apache Parquet files: schema, row count, and contents"
+license = "MIT"
+
+[[bin]]
+name = "parquet-tool"
+path = "src/main.rs"
+
+[dependencies]
+arrow = { version = "60", features = ["prettyprint", "chrono-tz"] }
+parquet = { version = "60", features = ["arrow", "snap", "brotli", "flate2", "lz4", "zstd"] }
+clap = { version = "4", features = ["derive"] }
+comfy-table = "7"
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+strip = true
