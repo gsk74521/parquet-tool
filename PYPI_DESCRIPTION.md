@@ -22,6 +22,7 @@ parquet-tool is a command-line tool written in **Rust** for inspecting Apache Pa
 | `show`        | Print contents as table / CSV / JSON, with row limit, offset and column filter |
 | `cat`         | Print the entire contents (all rows) |
 | `head`        | Print the first N rows (like Linux `head`) |
+| `distinct`    | Count distinct (unique non-null) values per column, plus NULL counts |
 | `compression` | Print per-column and per-file compression statistics (sizes, codec, ratio) |
 
 ### Install
@@ -44,6 +45,9 @@ parquet-tool head data.parquet -n 5
 
 # Print all rows as JSON
 parquet-tool cat data.parquet --format json
+
+# Count distinct values per column
+parquet-tool distinct data.parquet
 
 # Print compression statistics
 parquet-tool compression data.parquet
@@ -79,6 +83,7 @@ parquet-tool 是一个用 **Rust** 编写的 Apache Parquet 文件查看工具�
 | `show`        | 以表格 / CSV / JSON 查看内容，支持行数限制、起始偏移、列筛选 |
 | `cat`         | 查看完整内容（全部行） |
 | `head`        | 查看开头前 N 行（类似 Linux `head`） |
+| `distinct`    | 查看每一列的 distinct（唯一非空）值数量，以及 NULL 数量 |
 | `compression` | 查看逐列及文件级压缩统计（压缩前后大小、算法、压缩比） |
 
 ### 安装
@@ -101,6 +106,9 @@ parquet-tool head data.parquet -n 5
 
 # 以 JSON 输出全部内容
 parquet-tool cat data.parquet --format json
+
+# 查看每一列的 distinct 值数量
+parquet-tool distinct data.parquet
 
 # 查看压缩统计
 parquet-tool compression data.parquet
