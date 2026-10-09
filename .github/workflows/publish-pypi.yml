@@ -1,0 +1,62 @@
+name: publish-pypi
+
+# 发布 parquet-tool 到 PyPI：pip install parquet-tool
+# 触发方式：
+#   1. 手动触发（Actions 页面点 Run workflow）
+#   2. 推 v* 标签（可选，默认开启）
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux: 静态 musl 交叉编译，wheel 用 musllinux 标签（任何 Linux 可装）
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            manylinux: musllinux_1_2
+          # Windows: 本机 MSVC 构建
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            manylinux: off
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheel
+        uses: messense/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --bindings bin --out dist --strip
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.target }}
+          path: dist/*.whl
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # PyPI Trusted Publishing 需要
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
