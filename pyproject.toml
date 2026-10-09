@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "parquet-tool"
 description = "Inspect Apache Parquet files: schema, row count, contents, and compression statistics"
-readme = "README_EN.md"
+readme = "PYPI_DESCRIPTION.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
 keywords = ["parquet", "arrow", "inspect", "cli", "schema"]
