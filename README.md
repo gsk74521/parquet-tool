@@ -11,6 +11,7 @@
 - **show** — 查看 parquet 文件的详细内容，支持表格 / CSV / JSON 三种输出格式、行数限制、起始偏移、列筛选
 - **cat** — 查看 parquet 文件的完整内容（全部行）
 - **head** — 查看 parquet 文件的开头前几行（类似 Linux `head` 命令）
+- **distinct** — 查看每一列有多少个 distinct（唯一非空）值，以及 NULL 数量
 - **compression** — 查看压缩统计（逐列压缩前后大小、压缩算法、压缩比）
 
 ## 使用方法
@@ -24,6 +25,7 @@ Commands:
   show         查看文件内容（可限制行数）
   cat          查看文件的完整内容（全部行）
   head         查看文件的开头前 N 行
+  distinct     查看每一列的 distinct 值数量
   compression  查看压缩统计（逐列压缩比）
 ```
 
@@ -136,6 +138,47 @@ parquet-tool head <file.parquet> -n 5 --format json --columns id,name
 | `head` | `-n, --lines <N>` | 查看开头前 N 行 | `10` |
 | `head` | `-f, --format <fmt>` | 输出格式：`table` / `csv` / `json` | `table` |
 | `head` | `-c, --columns <cols>` | 只显示指定列（逗号分隔） | 全部列 |
+
+### distinct —— 查看每一列的 distinct 值数量
+
+```
+# 查看所有列
+parquet-tool distinct <file.parquet>
+
+# 只看指定列
+parquet-tool distinct <file.parquet> -c id,name
+```
+
+输出示例：
+
+```
+File: sample.parquet
+Row count: 100
+
+column                         distinct      nulls    distinct%
+------------------------------------------------------------------
+id                                  100          0      100.00%
+name                                100          0      100.00%
+score                                85         15       85.00%
+active                                2          0        2.00%
+tags                                 13          0       13.00%
+------------------------------------------------------------------
+distinct  = number of unique non-null values
+nulls     = number of NULL values
+distinct% = distinct / total rows
+```
+
+- `distinct`：该列**非空唯一值**的个数（等价于 SQL `COUNT(DISTINCT col)`）
+- `nulls`：该列 NULL 值的个数
+- `distinct%`：distinct 数占**总行数**的比例（不是占非空行数）
+- 采用流式处理：逐 row group 读取，内存中只保留每列的 distinct 值集合，内存占用与 distinct 数量成正比、与文件总行数无关，超大文件也可使用
+- 支持所有数据类型（数值、字符串、布尔、时间戳、嵌套 struct、list 等）
+
+### 参数说明（distinct）
+
+| 命令 | 参数 | 说明 | 默认值 |
+|------|------|------|--------|
+| `distinct` | `-c, --columns <cols>` | 只统计指定列（逗号分隔） | 全部列 |
 
 ### compression —— 查看压缩统计
 
