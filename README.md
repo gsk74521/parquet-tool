@@ -262,3 +262,22 @@ git push origin main --tags
 - **Release notes**：workflow 用 `generate_release_notes: true` 自动生成；也可发布后在 GitHub 页面手动补充中文说明
 - **回滚**：保留历史 tag/release，发现问题可下载旧版本；代码回滚用 `git revert`
 - **检查状态**：仓库页 Actions 标签页查看构建进度，失败时点进日志排查
+
+## 发布到 PyPI（pip install parquet-tool）
+
+项目包含 PyPI 发布工作流 [.github/workflows/publish-pypi.yml](.github/workflows/publish-pypi.yml)。构建 Linux（musllinux 静态）和 Windows 两种 wheel，可 `pip install parquet-tool` 直接安装使用（安装后得到 `parquet-tool` 命令）。
+
+**前置准备（一次性）**：
+1. 在 [pypi.org](https://pypi.org) 注册账号
+2. 配置 PyPI Trusted Publishing（推荐）或 API token：
+   - **Trusted Publishing**（推荐）：PyPI → Account settings → Publishing → 添加 `gsk74521/parquet-tool` 仓库的 `pypi` environment
+   - **API token**：PyPI → Account settings → API tokens → 生成 token，添加到 GitHub 仓库 Settings → Secrets and variables → Actions → `PYPI_API_TOKEN`
+
+**发布新版本**：
+```bash
+# 手动触发：GitHub Actions 页面 → publish-pypi → Run workflow
+# 或推送 v* 标签（与 GitHub Releases 共用）
+git push origin main --tags
+```
+
+发布后在 PyPI 项目页可查看：`pip install parquet-tool`
