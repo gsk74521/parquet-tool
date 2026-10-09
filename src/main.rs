@@ -76,6 +76,14 @@ enum Command {
         #[arg(short, long)]
         columns: Option<String>,
     },
+    /// Count distinct (unique) values per column
+    Distinct {
+        /// Path to the parquet file
+        file: PathBuf,
+        /// Only analyze these columns (comma separated)
+        #[arg(short, long)]
+        columns: Option<String>,
+    },
     /// Print per-column and per-file compression statistics
     #[command(
         about = "Print per-column and per-file compression statistics",
@@ -135,6 +143,7 @@ fn main() {
             columns,
         } => run_output(file, columns.as_deref(), 0, Some(*lines), format),
         Command::Compression { file } => run_compression(file),
+        Command::Distinct { file, columns } => run_distinct(file, columns.as_deref()),
     };
     if let Err(e) = result {
         eprintln!("error: {e}");
@@ -204,6 +213,91 @@ fn run_rowcount(path: &Path) -> Result<(), Box<dyn Error>> {
     let builder = open_reader(path)?;
     let num_rows = builder.metadata().file_metadata().num_rows();
     println!("{num_rows}");
+    Ok(())
+}
+
+/// Count distinct (non-null unique) values per column, like SQL COUNT(DISTINCT col).
+/// Streams row groups batch by batch, keeping only a HashSet<OwnedRow> per column,
+/// so memory use is proportional to the number of distinct values, not total rows.
+fn run_distinct(path: &Path, columns: Option<&str>) -> Result<(), Box<dyn Error>> {
+    let builder = open_reader(path)?;
+    let schema = builder.schema();
+
+    let selected: Vec<usize> = match columns {
+        Some(spec) => spec
+            .split(',')
+            .map(|c| c.trim())
+            .filter(|c| !c.is_empty())
+            .map(|c| {
+                schema
+                    .index_of(c)
+                    .map_err(|_| format!("unknown column: {c}").into())
+            })
+            .collect::<Result<Vec<_>, Box<dyn Error>>>()?,
+        None => (0..schema.fields().len()).collect(),
+    };
+
+    let names: Vec<String> = selected
+        .iter()
+        .map(|&i| schema.field(i).name().clone())
+        .collect();
+
+    // One RowConverter per column: encodes a single column's values into a
+    // comparable/hashable row format, supporting all Arrow data types.
+    let converters: Vec<arrow::row::RowConverter> = selected
+        .iter()
+        .map(|&i| {
+            arrow::row::RowConverter::new(vec![arrow::row::SortField::new(
+                schema.field(i).data_type().clone(),
+            )])
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut distinct_sets: Vec<std::collections::HashSet<arrow::row::OwnedRow>> =
+        vec![std::collections::HashSet::new(); selected.len()];
+    let mut null_counts: Vec<u64> = vec![0; selected.len()];
+    let mut total_rows: u64 = 0;
+
+    let reader = builder.build()?;
+    for batch in reader {
+        let batch: RecordBatch = batch?;
+        let num_rows = batch.num_rows();
+        for (k, &col_idx) in selected.iter().enumerate() {
+            let arr = batch.column(col_idx);
+            let rows = converters[k].convert_columns(std::slice::from_ref(arr))?;
+            for (row_idx, row) in rows.iter().enumerate() {
+                if arr.is_null(row_idx) {
+                    null_counts[k] += 1;
+                } else {
+                    distinct_sets[k].insert(row.owned());
+                }
+            }
+        }
+        total_rows += num_rows as u64;
+    }
+
+    println!("File: {}", path.display());
+    println!("Row count: {total_rows}");
+    println!();
+    println!("{:<28} {:>10} {:>10} {:>12}", "column", "distinct", "nulls", "distinct%");
+    println!("{}", "-".repeat(66));
+    for (k, name) in names.iter().enumerate() {
+        let distinct = distinct_sets[k].len();
+        let nulls = null_counts[k];
+        let pct = if total_rows > 0 {
+            distinct as f64 * 100.0 / total_rows as f64
+        } else {
+            0.0
+        };
+        println!(
+            "{:<28} {:>10} {:>10} {:>11.2}%",
+            name, distinct, nulls, pct
+        );
+    }
+    println!("{}", "-".repeat(66));
+    println!("distinct  = number of unique non-null values");
+    println!("nulls     = number of NULL values");
+    println!("distinct% = distinct / total rows");
     Ok(())
 }
 
