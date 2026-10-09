@@ -262,3 +262,22 @@ git push origin main --tags
 - **Release notes**: the workflow uses `generate_release_notes: true`; you can also add notes manually on the GitHub page after publishing
 - **Rollback**: keep historical tags/releases so older versions can be downloaded; use `git revert` for code rollback
 - **Check status**: watch the Actions tab on the repository page; click into the logs on failure to debug
+
+## Publishing to PyPI (`pip install parquet-tool`)
+
+The repository includes a PyPI publishing workflow [.github/workflows/publish-pypi.yml](.github/workflows/publish-pypi.yml). It builds Linux (statically linked musllinux) and Windows wheels so users can install with `pip install parquet-tool` and get the `parquet-tool` command.
+
+**One-time setup:**
+1. Create an account at [pypi.org](https://pypi.org)
+2. Configure either Trusted Publishing (recommended) or an API token:
+   - **Trusted Publishing** (recommended): PyPI → Account settings → Publishing → add the `gsk74521/parquet-tool` repository with the `pypi` environment
+   - **API token**: PyPI → Account settings → API tokens → create a token, then add it as `PYPI_API_TOKEN` in the repository Settings → Secrets and variables → Actions
+
+**Release a new version:**
+```bash
+# Manually trigger: GitHub Actions page → publish-pypi → Run workflow
+# Or push a v* tag (shared with GitHub Releases)
+git push origin main --tags
+```
+
+After publishing, users can install with: `pip install parquet-tool`
