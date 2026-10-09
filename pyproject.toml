@@ -1,0 +1,27 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "parquet-tool"
+description = "Inspect Apache Parquet files: schema, row count, contents, and compression statistics"
+readme = "README_EN.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+keywords = ["parquet", "arrow", "inspect", "cli", "schema"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Rust",
+    "Topic :: Database :: Database Engines/Servers",
+    "Topic :: Utilities",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+bindings = "bin"
+strip = true
