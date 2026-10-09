@@ -11,6 +11,7 @@ A Parquet file inspection tool written in Rust, compiled into a single self-cont
 - **show** — print the contents with table / CSV / JSON output, row limits, offset, and column filtering
 - **cat** — print the entire contents (all rows)
 - **head** — print the first N rows (like the Linux `head` command)
+- **distinct** — count the distinct (unique non-null) values per column, plus NULL counts
 - **compression** — print per-column and per-file compression statistics (before/after sizes, codec, ratio)
 
 ## Usage
@@ -24,6 +25,7 @@ Commands:
   show         Print the file contents (limited rows)
   cat          Print the entire contents (all rows)
   head         Print the first N rows
+  distinct     Count distinct values per column
   compression  Print compression statistics (per-column ratio)
 ```
 
@@ -136,6 +138,47 @@ parquet-tool head <file.parquet> -n 5 --format json --columns id,name
 | `head` | `-n, --lines <N>` | Number of rows to print | `10` |
 | `head` | `-f, --format <fmt>` | Output format: `table` / `csv` / `json` | `table` |
 | `head` | `-c, --columns <cols>` | Only these columns | all |
+
+### distinct — count distinct values per column
+
+```
+# All columns
+parquet-tool distinct <file.parquet>
+
+# Only specific columns
+parquet-tool distinct <file.parquet> -c id,name
+```
+
+Example output:
+
+```
+File: sample.parquet
+Row count: 100
+
+column                         distinct      nulls    distinct%
+------------------------------------------------------------------
+id                                  100          0      100.00%
+name                                100          0      100.00%
+score                                85         15       85.00%
+active                                2          0        2.00%
+tags                                 13          0       13.00%
+------------------------------------------------------------------
+distinct  = number of unique non-null values
+nulls     = number of NULL values
+distinct% = distinct / total rows
+```
+
+- `distinct`: number of **unique non-null** values in the column (equivalent to SQL `COUNT(DISTINCT col)`)
+- `nulls`: number of NULL values in the column
+- `distinct%`: distinct divided by **total rows** (not non-null rows)
+- Streams row groups batch by batch; memory holds only the distinct-value sets per column, so memory usage grows with the number of distinct values, not the total row count — works on very large files
+- Supports all data types (numbers, strings, booleans, timestamps, nested structs, lists, etc.)
+
+### Options (distinct)
+
+| Command | Option | Description | Default |
+|---------|--------|-------------|---------|
+| `distinct` | `-c, --columns <cols>` | Only count these columns | all |
 
 ### compression — compression statistics
 
